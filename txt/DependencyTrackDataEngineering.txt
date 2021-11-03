@@ -1,0 +1,196 @@
+WORKFLOW STEPS FOR GETTING DATA IN (NIFI) FROM DEPENDENCY TRACK FOR ANOMALY DETECTION
+
+2021-10-29 JHF
+
+
+
+
+
+STEP 1 - Get Project Table data
+
+
+curl -X GET -H "Host:SERVER" -H "Content-Type: application/json" -H "X-API-Key: PASSPHRASE" "https://SERVER/api/v1/project?pageSize=10000&pageNumber=1" > dt-proj-list-raw.json
+
+
+
+
+
+STEP 2 - Pretty print two Project events
+
+
+jq . dt-proj-list-raw.json > dt-proj-list-subset.json
+
+
+[
+  {
+    "name": "Armory",
+    "version": "1.0.0.74",
+    "uuid": "af5e5c98-bb94-4556-9323-746aea464e90",
+    "lastBomImport": 1633354954442,
+    "lastBomImportFormat": "CycloneDX 1.1",
+    "lastInheritedRiskScore": 227,
+    "active": true,
+    "metrics": {
+      "critical": 3,
+      "high": 32,
+      "medium": 12,
+      "low": 1,
+      "unassigned": 0,
+      "vulnerabilities": 48,
+      "vulnerableComponents": 4,
+      "components": 368,
+      "suppressed": 0,
+      "findingsTotal": 48,
+      "findingsAudited": 0,
+      "findingsUnaudited": 48,
+      "inheritedRiskScore": 227,
+      "firstOccurrence": 1633354996696,
+      "lastOccurrence": 1634980636977
+    }
+  },
+  {
+    "name": "CarpoDashboard",
+    "version": "0.1.0.51",
+    "uuid": "77a746d2-300e-4566-87ac-755f2d7dd6db",
+    "lastBomImport": 1633015021892,
+    "lastBomImportFormat": "CycloneDX 1.1",
+    "lastInheritedRiskScore": 71,
+    "active": true,
+    "metrics": {
+      "critical": 3,
+      "high": 7,
+      "medium": 2,
+      "low": 0,
+      "unassigned": 0,
+      "vulnerabilities": 12,
+      "vulnerableComponents": 3,
+      "components": 302,
+      "suppressed": 0,
+      "findingsTotal": 12,
+      "findingsAudited": 0,
+      "findingsUnaudited": 12,
+      "inheritedRiskScore": 71,
+      "firstOccurrence": 1633015067996,
+      "lastOccurrence": 1634983349181
+    }
+  }
+]
+
+
+
+
+
+STEP 3 - Flatten Project Table Data
+
+
+jq 'map({"name": .name, "version": .version, "uuid": .uuid, "lastbomimport": .lastBomImport, "lastriskscore": .lastInheritedRiskScore, "metric_active": .active, "metric_critical": .metrics.critical, "metric_high": .metrics.high, "metric_medium": .metrics.medium, "metric_low": .metrics.low, "metric_unassigned": .metrics.unassigned, "metric_vulnerabilities": .metrics.vulnerabilities, "metric_vulnerablecomponents": .metrics.vulnerableComponents, "metric_components": .metrics.components, "metric_suppressed": .metrics.suppressed, "metric_findingstotal": .metrics.findingsTotal, "metric_inheritedriskscore": .metrics.inheritedRiskScore, "metric_firstoccurrence": .metrics.firstOccurrence, "metric_lastoccurrence": .metrics.lastOccurrence})' dt-proj-list-subset.json > dt-proj-list-subset-flat.json
+
+
+
+[                                                                       
+  {                                                                     
+    "name": "Armory",                                                   
+    "version": "1.0.0.74",                                              
+    "uuid": "af5e5c98-bb94-4556-9323-746aea464e90",                     
+    "lastbomimport": 1633354954442,                                     
+    "lastriskscore": 227,                                               
+    "metric_active": true,                                              
+    "metric_critical": 3,                                               
+    "metric_high": 32,                                                  
+    "metric_medium": 12,                                                
+    "metric_low": 1,                                                    
+    "metric_unassigned": 0,                                             
+    "metric_vulnerabilities": 48,                                       
+    "metric_vulnerablecomponents": 4,                                   
+    "metric_components": 368,                                           
+    "metric_suppressed": 0,                                             
+    "metric_findingstotal": 48,                                         
+    "metric_inheritedriskscore": 227,                                   
+    "metric_firstoccurrence": 1633354996696,                            
+    "metric_lastoccurrence": 1634980636977                              
+  },                                                                    
+  {                                                                     
+    "name": "CarpoDashboard",                                           
+    "version": "0.1.0.51",                                              
+    "uuid": "77a746d2-300e-4566-87ac-755f2d7dd6db",                     
+    "lastbomimport": 1633015021892,                                     
+    "lastriskscore": 71,                                                
+    "metric_active": true,                                              
+    "metric_critical": 3,                                               
+    "metric_high": 7,                                                   
+    "metric_medium": 2,                                                 
+    "metric_low": 0,                                                    
+    "metric_unassigned": 0,                                             
+    "metric_vulnerabilities": 12,                                       
+    "metric_vulnerablecomponents": 3,                                   
+    "metric_components": 302,                                           
+    "metric_suppressed": 0,                                             
+    "metric_findingstotal": 12,                                         
+    "metric_inheritedriskscore": 71,                                    
+    "metric_firstoccurrence": 1633015067996,                            
+    "metric_lastoccurrence": 1634983349181                              
+  }                                                                     
+]                                                                       
+
+
+
+
+
+STEP 4 - Get Findings per Project UUID
+
+
+curl -X GET -H "Host:SERVER" -H "Content-Type: application/json" -H "X-API-Key: PASSPHRASE" "https://SERVER/api/v1/finding/project/af5e5c98-bb94-4556-9323-746aea464e90/export?pageSize=10000&pageNumber=1" > finding-1.json
+
+curl -X GET -H "Host:SERVER" -H "Content-Type: application/json" -H "X-API-Key: PASSPHRASE" "https://SERVER/api/v1/finding/project/77a746d2-300e-4566-87ac-755f2d7dd6db/export?pageSize=10000&pageNumber=1" > finding-2.json
+
+
+
+
+
+STEP 5 - Flatten Findings Table Data
+
+
+jq '[.] | map({"comp_name": .component.name, "comp_purl": .component.purl, "comp_uuid": .component.uuid, "comp_version": .component.version, "vuln_sev": .vulnerability.severity, "vuln_sevrank": .vulnerability.severityRank, "vuln_cwename": .vulnerability.cweName, "vuln_vulnid": .vulnerability.vulnId, "vuln_cweid": .vulnerability.cweId, "vuln_desc": .vulnerability.description, "vuln_source": .vulnerability.source, "vuln_uuid": .vulnerability.uuid})'
+
+
+
+
+
+STEP 6 - Merge Tables
+
+
+jq -r --arg proj_name ${proj_name} --arg proj_version ${proj_version} --arg proj_uuid ${proj_uuid} --arg proj_lastbomimport ${proj_lastbomimport} --arg proj_lastriskscore ${proj_lastriskscore} --arg proj_metric_active ${proj_metric_active} --arg proj_metric_critical ${proj_metric_critical} --arg proj_metric_high ${proj_metric_high} --arg proj_metric_medium ${proj_metric_medium} --arg proj_metric_low ${proj_metric_low} --arg proj_metric_unassigned ${proj_metric_unassigned} --arg proj_metric_vulnerabilities ${proj_metric_vulnerabilities} --arg proj_metric_vulnerablecomponents ${proj_metric_vulnerablecomponents} --arg proj_metric_components ${proj_metric_components} --arg proj_metric_suppressed ${proj_metric_suppressed} --arg proj_metric_findingstotal ${proj_metric_findingstotal} --arg proj_metric_inheritedriskscore ${proj_metric_inheritedriskscore} --arg proj_metric_firstoccurrence ${proj_metric_firstoccurrence} --arg proj_metric_lastoccurrence ${proj_metric_lastoccurrence} --arg proj_meta_numberbyday ${proj_meta_numberbyday} --arg proj_meta_sampledate ${proj_meta_sampledate} --arg proj_meta_sumbyday ${proj_meta_sumbyday} -f /data/bin/merge.jq
+
+
+
+
+# FILE: /data/bin/merge.jq
+# The jq file option was used to prevent nifi streaming processor from errors due to improper parsing
+
+map(. += {"proj_name": $proj_name, "proj_version": $proj_version, "proj_uuid": $proj_uuid, "proj_lastbomimport": $proj_lastbomimport, "proj_lastriskscore": $proj_lastriskscore | tonumber, "proj_active": $proj_metric_active, "proj_critical": $proj_metric_critical | tonumber, "proj_high": $proj_metric_high | tonumber, "proj_low": $proj_metric_low | tonumber, "proj_unassigned": $proj_metric_unassigned | tonumber, "proj_vuln": $proj_metric_vulnerabilities | tonumber, "proj_vulncomp": $proj_metric_vulnerablecomponents | tonumber, "proj_comp": $proj_metric_components | tonumber, "proj_suppressed": $proj_metric_suppressed | tonumber, "proj_findingstotal": $proj_metric_findingstotal | tonumber, "proj_inheritedriskscore": $proj_metric_inheritedriskscore | tonumber, "proj_firstoccurrence": $proj_metric_firstoccurrence, "proj_lastoccurrence": $proj_metric_lastoccurrence, "projmeta_numberbyday": $proj_meta_numberbyday | tonumber, "projmeta_sampledate": $proj_meta_sampledate, "projmeta_sumbyday": $proj_meta_sumbyday | tonumber})
+
+
+
+
+
+STEP 7 - Merge 10k Flowfiles (NiFi specific process)
+
+
+
+
+
+STEP 8 - Merge Json Objects
+
+
+jq 'reduce inputs as $in (.; . + $in)'
+
+
+
+
+STEP 9 - Convert JSON to TSV
+
+
+jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | @tsv'
+
+
+
